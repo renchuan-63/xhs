@@ -1,0 +1,3 @@
+PySide6==6.7.0
+playwright==1.52.0
+qasync==0.27.1
