@@ -6,7 +6,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
     QScrollArea,
-    QLabel
+    QLabel,
+    QSpinBox
 )
 
 from core.account_manager import AccountManager
@@ -20,15 +21,18 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle('小红书多账号助手')
+        self.setWindowTitle('Renchuan')
 
-        self.resize(420, 800)
+        self.resize(520, 800)
 
         self.account_manager = AccountManager()
 
         self.browser_manager = BrowserManager()
 
-        self.operator = XHSOperator(self.browser_manager)
+        self.operator = XHSOperator(self.browser_manager, self)
+
+        # 保存账号卡片引用
+        self.cards = {}
 
         self.main_layout = QVBoxLayout()
 
@@ -62,6 +66,19 @@ class MainWindow(QWidget):
 
         run_all_btn = QPushButton('一键执行')
 
+        # restart_btn = QPushButton("重新开始")
+
+        # restart_btn.clicked.connect(
+        #     lambda:
+        #     asyncio.create_task(
+        #         self.restart_round_all()
+        #     )
+        # )
+
+        # layout.addWidget(
+        #     restart_btn
+        # )
+
         run_all_btn.clicked.connect(
             lambda: asyncio.create_task(
                 self.run_all()
@@ -70,6 +87,23 @@ class MainWindow(QWidget):
 
         layout.addWidget(run_all_btn)
 
+
+        self.batch_input = QSpinBox()
+
+        self.batch_input.setMinimum(2)
+ 
+        self.batch_input.setMaximum(500)
+
+        self.batch_input.setValue(2)
+
+        layout.addWidget(
+            QLabel("数量")
+        )
+
+        layout.addWidget(
+            self.batch_input
+        )
+
         close_all_btn = QPushButton('一键关闭')
 
         close_all_btn.clicked.connect(
@@ -77,6 +111,8 @@ class MainWindow(QWidget):
                 self.browser_manager.close_all()
             )
         )
+
+        
 
         layout.addWidget(close_all_btn)
 
@@ -100,6 +136,8 @@ class MainWindow(QWidget):
 
     def render_accounts(self):
 
+        self.cards.clear()
+
         while self.container_layout.count():
 
             item = self.container_layout.takeAt(0)
@@ -120,13 +158,70 @@ class MainWindow(QWidget):
             card = AccountCard(
                 account,
                 self.open_account,
-                self.run_account,
+                self.continue_account,
+                self.restart_account,
+                self.stop_account,
                 self.delete_account
             )
+
+            # 保存引用
+            self.cards[
+                account["id"]
+            ] = card
 
             self.container_layout.addWidget(card)
 
         self.container_layout.addStretch()
+
+    def update_status(
+        self,
+        account_id,
+        status
+    ):
+
+        card = self.cards.get(
+            account_id
+        )
+
+        if card:
+
+            card.status_label.setText(
+                f"状态：{status}"
+            )
+
+    def update_progress(
+        self,
+        account_id,
+        current,
+        total
+    ):
+
+        card = self.cards.get(
+            account_id
+        )
+
+        if card:
+
+            card.progress_label.setText(
+                f"进度：{current}/{total}"
+            )
+
+    def update_fail(
+        self,
+        account_id,
+        fail_count
+    ):
+
+        card = self.cards.get(
+            account_id
+        )
+
+        if card:
+
+            card.fail_label.setText(
+                f"失败：{fail_count}"
+            )
+
 
     def add_account(self):
 
@@ -154,9 +249,64 @@ class MainWindow(QWidget):
 
     def run_account(self, account):
 
-        asyncio.create_task(
-            self.operator.relaunch_note(account['id'])
+        print("点击执行按钮")
+
+        count = self.batch_input.value()
+
+        print(
+            f"本次处理数量: {count}"
         )
+
+        asyncio.create_task(
+            self.operator.relaunch_note(account['id'],
+            count
+            )
+        )
+
+    def continue_account(self, account):
+
+        asyncio.create_task(
+            self.operator.continue_round(
+                account["id"],
+                self.batch_input.value()
+            )
+        )
+
+    
+    def stop_account(
+        self,
+        account
+    ):
+
+        self.operator.stop_task(
+            account["id"]
+        )
+
+
+    def restart_account(self, account):
+
+        asyncio.create_task(
+        self.restart_and_run(account)
+    )
+
+    async def restart_and_run(self, account):
+
+        batch_size = self.batch_input.value()
+
+        await self.operator.restart_round(
+            account["id"]
+        )
+
+        print(
+            "重新开始后执行数量:",
+            batch_size
+        )
+
+        await self.operator.continue_round(
+            account["id"],
+            batch_size
+        )
+    
 
     def delete_account(self, account):
 
@@ -186,9 +336,30 @@ class MainWindow(QWidget):
 
     async def run_all(self):
 
-        account_ids = [
-            acc['id']
-            for acc in self.account_manager.accounts
-        ]
+        batch_size = self.batch_input.value()
 
-        await self.operator.relaunch_all(account_ids)
+        tasks = []
+
+        for account in self.account_manager.accounts:
+
+            tasks.append(
+                self.operator.continue_round(
+                    account['id'],
+                    batch_size
+                )
+            )
+
+        await asyncio.gather(*tasks)
+
+
+    async def restart_round_all(self):
+
+        for account in self.account_manager.accounts:
+
+            await self.operator.restart_round(
+                account["id"]
+            )
+
+        print(
+            "所有账号已重新开始新一轮"
+        )
