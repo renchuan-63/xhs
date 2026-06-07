@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 
 from core.progress_manager import ProgressManager
 from core.human import (
@@ -15,7 +16,9 @@ from core.human import (
     startup_delay,
     human_type_with_typo,
     random_wait,
-    move_to_locator
+    move_to_locator,
+    simulate_editor_reading,
+    get_random_word
 )
 
 
@@ -148,36 +151,81 @@ class XHSOperator:
             page,
             edit_btn
         )
-
+        await page.wait_for_timeout(
+            3000
+        )
         print("编辑按钮点击成功")
-        await simulate_reading(page)
+        await page.wait_for_timeout(
+            random.randint(
+                3000,
+                6000
+            )
+        )
+        await simulate_editor_reading(page)
 
-        await page.wait_for_timeout(5000)
-
-        await simulate_reading(page)
 
         await think_before_edit()
 
         editor = page.locator(
             'div[contenteditable="true"].tiptap.ProseMirror'
         ).first
+        await editor.scroll_into_view_if_needed()
 
+        await page.wait_for_timeout(
+            random.randint(
+                1000,
+                3000
+            )
+        )
         old_text = await editor.inner_text()
 
         print("原正文:")
         print(old_text)
 
-        await think_before_edit()
-
-        await editor.click()
-
-        await page.keyboard.press("End")
-
-        await page.keyboard.press("Enter")
-
-        await human_type_with_typo(
+        # await think_before_edit()
+        await move_to_locator(
             page,
-            "good"
+            editor
+        )
+
+        await random_wait(
+            1,
+            3
+        )
+        await editor.click()
+        print(
+                await page.evaluate(
+                    "document.activeElement.outerHTML"
+                )
+            )
+
+        await editor.evaluate("""
+        (node) => {
+            node.focus();
+
+            const range = document.createRange();
+            const sel = window.getSelection();
+
+            range.selectNodeContents(node);
+            range.collapse(false);
+
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+        """)
+
+        await page.wait_for_timeout(1000)
+
+        # await page.keyboard.press("Enter")
+
+        word = get_random_word()
+        print(
+            f"本次追加内容: {word}"
+        )
+
+        await human_type(
+            page,
+            word
         )
 
         print("正文修改完成")
@@ -190,29 +238,38 @@ class XHSOperator:
         )
 
         await think_before_publish()
+        try:
+            await human_click(
+                page,
+                publish_btn
+            )
 
-        await human_click(
-            page,
-            publish_btn
-        )
+            print("点击发布成功")
 
-        print("点击发布成功")
+            await random_wait(
+                10,
+                30
+            )
+        except Exception as e:
+            print("发布失败", e)
+            await page.goto(
+                "https://creator.xiaohongshu.com/new/note-manager"
+            )
 
-        await random_wait(
-            10,
-            30
-        )
+            raise Exception("发布失败")
 
         print(
             "发布后URL:",
             page.url
         )
-
-        await finish_with_target_time(
-            start_time,
-            150,
-            180
-        )
+        try:
+            await finish_with_target_time(
+                start_time,
+                150,
+                180
+            )
+        except Exception as e:
+            print("补足时间失败", e)
     
 
     async def relaunch_note(self, account_id):
@@ -282,15 +339,32 @@ class XHSOperator:
 
             # await edit_btn.click()
             await human_click(page, edit_btn)
-
+            await page.wait_for_timeout(
+                3000
+            )
             print("编辑按钮点击成功")
-            await page.wait_for_timeout(5000)
+            await page.wait_for_timeout(
+                random.randint(
+                    3000,
+                    6000
+                )
+            )
+            await simulate_editor_reading(page)
+            # await page.wait_for_timeout(5000)
 
             print("当前URL:", page.url)
             
             # 获取编辑器
             editor = page.locator(
         'div[contenteditable="true"].tiptap.ProseMirror').first
+            await editor.scroll_into_view_if_needed()
+
+            await page.wait_for_timeout(
+                random.randint(
+                    1000,
+                    3000
+                )
+            )
 
             count = await editor.count()
 
@@ -301,33 +375,51 @@ class XHSOperator:
             print(old_text)
 
             # 修改正文
+            await move_to_locator(
+                page,
+                editor
+            )
 
+            await random_wait(
+                1,
+                3
+            )
             await editor.click()
+            print(
+                await page.evaluate(
+                    "document.activeElement.outerHTML"
+                )
+            )
 
-            # await editor.evaluate("""
-            # (node) => {
-            #     node.focus();
+            await editor.evaluate("""
+            (node) => {
+                node.focus();
 
-            #     const range = document.createRange();
-            #     const sel = window.getSelection();
+                const range = document.createRange();
+                const sel = window.getSelection();
 
-            #     range.selectNodeContents(node);
-            #     range.collapse(false);
+                range.selectNodeContents(node);
+                range.collapse(false);
 
-            #     sel.removeAllRanges();
-            #     sel.addRange(range);
-            # }
-            # """)
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+            """)
 
             # await editor.scroll_into_view_if_needed()
-            # await page.wait_for_timeout(1000)
+            await page.wait_for_timeout(1000)
 
-            await page.keyboard.press("End")
-            await page.keyboard.press("Enter")
+            # await page.keyboard.press("End")
+            # await page.keyboard.press("Enter")
 
-            await page.keyboard.type(
-                "good",
-                delay=100
+            word = get_random_word()
+            print(
+                f"本次追加内容: {word}"
+            )
+
+            await page_type(
+                page,
+                word
             )
 
             await editor.scroll_into_view_if_needed()
@@ -568,6 +660,15 @@ class XHSOperator:
         success_count = 0
         fail_count = 0
         completed_count = 0
+        # 下次休息阈值
+        next_rest_count = random.randint(
+            3,
+            7
+        )
+
+        print(
+            f"计划发布 {next_rest_count} 篇后休息"
+        )
 
         # for index, note in enumerate(
         #     target_notes,
@@ -665,7 +766,10 @@ class XHSOperator:
 
                 success_count += 1
 
-                if random.random() < 0.2:
+                if success_count >= next_rest_count:
+                    print(
+                        f"已发布{success_count}篇，开始休息"
+                    )
 
                     self.main_window.update_status(
                         account_id,
@@ -673,6 +777,19 @@ class XHSOperator:
                     )
 
                     await rest_after_batch()
+                    next_rest_count += random.randint(
+                        3,
+                        7
+                    )
+
+                    print(
+                        f"下一次将在 {next_rest_count} 篇后休息"
+                    )
+
+                    self.main_window.update_status(
+                        account_id,
+                        "恢复工作"
+                    )
 
                 completed_count += 1
 
@@ -689,10 +806,11 @@ class XHSOperator:
                 )
 
                 print(
-                    "处理失败, {note_id}"
+                    f"处理失败, {note_id}"
                 )
 
                 print(e)
+                continue
             
             finally:
 

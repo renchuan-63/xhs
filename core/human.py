@@ -3,6 +3,35 @@ import random
 import time
 
 
+# 随机词库
+RANDOM_WORDS = [
+    "good",
+    "nice",
+    "准确",
+    "ok",
+    "房源还在",
+    "awesome",
+    "cool",
+    "excellent",
+    "amazing",
+    "近期可看",
+    "thanks",
+    "record",
+    "记录一下",
+    "随时看房",
+    "欢迎看房",
+    "持续更新",
+    "今日记录",
+    "内容更新",
+    ""
+]
+
+def get_random_word():
+
+    return random.choice(
+        RANDOM_WORDS
+    )
+
 # =========================
 # 基础等待
 # =========================
@@ -176,12 +205,16 @@ async def human_type(
 
     for char in text:
 
-        await page.keyboard.type(char)
+        await page.keyboard.type(char, delay=random.randint(
+                200,
+                500
+            )
+        )
 
         await asyncio.sleep(
             random.uniform(
-                0.12,
-                0.45
+                0.3,
+                0.8
             )
         )
 
@@ -283,10 +316,11 @@ async def rest_after_batch():
     每发几篇休息一次
     """
 
-    rest_seconds = random.randint(
-        300,
-        900
-    )
+    rest_seconds = random.choice([
+        random.randint(180, 300),   # 3~5分钟
+        random.randint(300, 600),   # 5~10分钟
+        random.randint(600, 1200)   # 10~20分钟
+    ])
 
     print(
         f"模拟休息: {rest_seconds}秒"
@@ -295,6 +329,7 @@ async def rest_after_batch():
     await asyncio.sleep(
         rest_seconds
     )
+    return rest_seconds
 
 
 # =========================
@@ -351,3 +386,40 @@ async def human_type_with_typo(
                 0.4
             )
         )
+
+async def simulate_editor_reading(
+    page
+):
+    """
+    编辑页浏览
+    """
+
+    # 小幅下滑
+
+    await page.mouse.wheel(
+        0,
+        random.randint(
+            200,
+            500
+        )
+    )
+
+    await random_wait(
+        2,
+        4
+    )
+
+    # 小幅回滚
+
+    await page.mouse.wheel(
+        0,
+        -random.randint(
+            100,
+            300
+        )
+    )
+
+    await random_wait(
+        2,
+        4
+    )

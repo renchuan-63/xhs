@@ -3,5 +3,10 @@
     "id": "41225cab-9429-491c-9746-6f578e12eed5",
     "name": "账号1",
     "user_data_dir": "userdata/41225cab-9429-491c-9746-6f578e12eed5"
+  },
+  {
+    "id": "48652efe-5f33-44d4-b7ad-a59991819574",
+    "name": "账号2",
+    "user_data_dir": "userdata/48652efe-5f33-44d4-b7ad-a59991819574"
   }
 ]
