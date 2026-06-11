@@ -15,7 +15,7 @@ RANDOM_WORDS = [
     "excellent",
     "amazing",
     "近期可看",
-    "thanks",
+    "价格真实",
     "record",
     "记录一下",
     "随时看房",
